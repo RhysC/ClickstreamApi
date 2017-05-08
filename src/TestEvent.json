@@ -1,0 +1,12 @@
+{
+    "id":534534,
+    "userId":123,
+    "sessionId":1,
+    "environment":"dev",
+    "payload":{
+        "eventKey":"event-777",
+        "eventtype":"page navigation",
+        "pagedetails":"the landing page"
+    },
+     "timestamp":1494237272
+}

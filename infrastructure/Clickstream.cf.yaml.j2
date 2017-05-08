@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+#Parameters:
+
+
+Resources:
+
+  ClickStreamApiGatewayKinesisRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: ClickStreamApiGatewayKinesisRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "apigateway.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "VgwCorpKinesisClickStream"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action: "kinesis:PutRecord"
+                Resource:  !GetAtt ["ClickStreamKinesisStream", "Arn"]
+
+  ClickStreamKinesisStream:
+    Type: "AWS::Kinesis::Stream"
+    Properties:
+      Name: clickstream
+      ShardCount: 2
+      Tags:
+        - Key: Name
+          Value: clickstream-kinesisstream
+
+  ClickStreamApiGateway:
+    Type: "AWS::ApiGateway::RestApi"
+    Properties:
+      Name: ClickStreamApiGateway
+      Description: "The Rest API definition for receiving click stream events"
+      FailOnWarnings: true
+      Body:
+        {{params.swagger_def}}
+
+
+Outputs:
+  ClickStreamKinesisStreamOutput:
+    Description: "The clickstream Kinesis stream"
+    Value: !Ref ClickStreamKinesisStream
+    Export:
+      Name: !Sub "corp-clickstream-kinesis-stream"
+  ClickStreamApiGatewayOutput:
+    Description: "The clickstream Api Gateway"
+    Value: !Ref ClickStreamApiGateway
+    Export:
+      Name: !Sub "corp-clickstream-apigateway"
+  ClickStreamApiGatewayKinesisRoleOutput:
+    Description: "Role for Clickstream Api Gateway writing to the clickstream Kinesis stream"
+    Value: !Ref ClickStreamApiGatewayKinesisRole
+    Export:
+      Name: !Sub "corp-clickstream-apigateway-to-kinesis-role"

@@ -87,3 +87,6 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# Generated CF template
+Clickstream.cf.yaml

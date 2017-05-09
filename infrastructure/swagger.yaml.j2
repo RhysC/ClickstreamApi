@@ -1,0 +1,113 @@
+swagger: "2.0"
+info:
+  description: "Clickstream API Gateway"
+  version: "0.1.0"
+  title: "Clickstream API"
+  termsOfService: "TODO"
+  contact:
+    email: "rhys@mydomain.com"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+host: "clickstream.mydomain.com"
+basePath: "/v1"
+schemes:
+- "http" #TODO delete
+- "https"
+consumes:
+- "application/json"
+produces:
+- "application/json"
+tags:
+- name: "event"
+  description: "The clickstream events from application users of the application"
+  externalDocs:
+    description: "More documentation can be found in the architecture section in confluence #TODO"
+    url: "https://github.com/RhysC/ClickstreamApi"
+paths:
+  /event:
+    post:
+      tags:
+      - "event"
+      summary: "Add a new event to the clickstream"
+      description: "Capture the users clicks, page navigation and other metadata to help see how the users uses the application"
+      operationId: "addEvent"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Clickstream event object that needs to be added to the Clickstream"
+        required: true
+        schema:
+          $ref: "#/definitions/Event"
+      responses:
+        "200":
+          description: "Clickstream event accepted. No data is returned"
+        # "401":
+        #   description: "Unauthorized"
+        "422":
+          description: "Invalid input"
+      # security:
+      # - clickstream_auth:
+      #   - "write:event"
+      x-amazon-apigateway-integration:
+        credentials: !GetAtt ["ClickStreamApiGatewayKinesisRole", "Arn"] # This is tightly coupled to the host Cloudformation template
+        responses:
+          default:
+            statusCode: '200'
+        requestTemplates:
+          "application/json": '
+            {
+                "StreamName":"clickstream",
+                "Data":"$util.base64Encode($input.path(''$''))",
+                "PartitionKey": "$input.path(''$.id'')"
+            }'
+        uri: "arn:aws:apigateway:ap-southeast-2:kinesis:action/PutRecord" #The generic name for "PutRecord" to any Kinesis stream in Sydney. The specific stream name is define in the requestTemplates transform above
+        httpMethod: POST
+        requestParameters:
+          integration.request.header.Content-Type: "'application/x-amz-json-1.1'"
+        type: aws
+# securityDefinitions:
+#   clickstream_auth:
+#     type: "oauth2"
+#     authorizationUrl: "http://auth.mydomain.net/oauth/dialog"
+#     flow: "implicit"
+#     scopes:
+#       write:event: "Add events to the clickstream"
+#   api_key:
+#     type: "apiKey"
+#     name: "api_key"
+#     in: "header"
+definitions:
+  Event:
+    type: "object"
+    required:
+      - environment
+      - payload
+    properties:
+      id:
+        type: "integer"
+        format: "int64"
+      userId:
+        type: "integer"
+        format: "int64"
+      sessionId:
+        type: "integer"
+        format: "int64"
+      environment:
+        type: "string"
+        description: "Deployed Environment"
+        enum:
+        - "dev"
+        - "test"
+        - "prod"
+      payload:
+        $ref: '#/definitions/EventPayloadObjectModel'
+      timestamp:
+        type: "integer"
+        format: "int64"
+  EventPayloadObjectModel:
+    type: object
+    additionalProperties: true
+externalDocs:
+  description: "Find out more about Swagger"
+  url: "http://swagger.io"

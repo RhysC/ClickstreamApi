@@ -50,7 +50,7 @@ paths:
       # - clickstream_auth:
       #   - "write:event"
       x-amazon-apigateway-integration:
-        credentials: !GetAtt ["ClickStreamApiGatewayKinesisRole", "Arn"] # This is tightly coupled to the host Cloudformation template
+        credentials: !GetAtt ["ClickStreamApiGatewayKinesisRole", "Arn"] # This is tightly coupled to the host CloudFormation template
         responses:
           default:
             statusCode: '200'
@@ -61,7 +61,7 @@ paths:
                 "Data":"$util.base64Encode($input.path(''$''))",
                 "PartitionKey": "$input.path(''$.id'')"
             }'
-        uri: "arn:aws:apigateway:ap-southeast-2:kinesis:action/PutRecord" #The generic name for "PutRecord" to any Kinesis stream in Sydney. The specific stream name is define in the requestTemplates transform above
+        uri: "arn:aws:apigateway:eu-west-1:kinesis:action/PutRecord" #The generic name for "PutRecord" to any Kinesis stream in Sydney. The specific stream name is define in the requestTemplates transform above
         httpMethod: POST
         requestParameters:
           integration.request.header.Content-Type: "'application/x-amz-json-1.1'"

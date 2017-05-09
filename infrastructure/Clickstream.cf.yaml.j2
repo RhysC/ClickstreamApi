@@ -1,7 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 
-#Parameters:
-
+# Parameters:
 
 Resources:
 
@@ -18,10 +17,9 @@ Resources:
               Service:
                 - "apigateway.amazonaws.com"
             Action: "sts:AssumeRole"
-      Path: "/"
       Policies:
         -
-          PolicyName: "VgwCorpKinesisClickStream"
+          PolicyName: "PutToKinesisClickStream"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -47,6 +45,96 @@ Resources:
       FailOnWarnings: true
       Body:
         {{params.swagger_def}}
+
+  #Firehose to Data lake
+  EventS3Bucket:
+    Type: AWS::S3::Bucket
+    # DeletionPolicy: Retain #i.e. retain the bucket when the stack is deleted
+    Properties:
+      BucketName: rhysc-clickstream-raw-events
+      VersioningConfiguration:
+        Status: Enabled
+
+  ClickstreamFirehoseToS3Role:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: ClickstreamFirehoseToS3Role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "firehose.amazonaws.com"
+            Action: "sts:AssumeRole"
+            Condition:
+              StringEquals:
+                "sts:ExternalId": "032574790532"
+      Policies:
+        -
+          PolicyName: "ClickstreamFirehoseToS3Policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - "s3:PutObject"
+                  - "s3:AbortMultipartUpload"
+                  - "s3:GetBucketLocation"
+                  - "s3:GetObject"
+                  - "s3:ListBucket"
+                  - "s3:ListBucketMultipartUploads"
+                Resource: "arn:aws:s3:::rhysc-clickstream-raw-events/*"
+
+  ClickstreamFirehose:
+    Type: "AWS::KinesisFirehose::DeliveryStream"
+    Properties:
+      DeliveryStreamName: clickstreamfirehose
+      S3DestinationConfiguration:
+        BucketARN:
+          Fn::Join:
+            - ''
+            - - 'arn:aws:s3:::'
+              - Ref: EventS3Bucket
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 2
+        CompressionFormat: GZIP
+        Prefix: "clickstreamfirehose/"
+        RoleARN: !GetAtt ["ClickstreamFirehoseToS3Role", "Arn"]
+
+
+  ClickstreamLambdaToFirehoseRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: ClickstreamLambdaToFirehoseRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies:
+        -
+          PolicyName: "ClickstreamLambdaToFirehosePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - "s3:PutObject"
+                  - "s3:AbortMultipartUpload"
+                  - "s3:GetBucketLocation"
+                  - "s3:GetObject"
+                  - "s3:ListBucket"
+                  - "s3:ListBucketMultipartUploads"
+                Resource: "arn:aws:s3:::rhysc-clickstream-raw-events/*"
 
 
 Outputs:

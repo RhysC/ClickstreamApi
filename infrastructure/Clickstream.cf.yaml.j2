@@ -18,10 +18,9 @@ Resources:
               Service:
                 - "apigateway.amazonaws.com"
             Action: "sts:AssumeRole"
-      Path: "/"
       Policies:
         -
-          PolicyName: "VgwCorpKinesisClickStream"
+          PolicyName: "PutToKinesisClickStream"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -48,6 +47,45 @@ Resources:
       Body:
         {{params.swagger_def}}
 
+  #Firehose to Data lake
+  EventS3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain #i.e. retain the bucket when the stack is deleted
+    Properties:
+      BucketName: rhysc-clickstream-raw-events
+      VersioningConfiguration:
+        Status: Enabled
+
+  ClickstreamFirehoseToS3Role:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: ClickstreamFirehoseToS3Role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "firehose.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies:
+        -
+          PolicyName: "ClickstreamFirehoseToS3Policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - "s3:PutObject"
+                  - "s3:AbortMultipartUpload"
+                  - "s3:GetBucketLocation"
+                  - "s3:GetObject"
+                  - "s3:ListBucket"
+                  - "s3:ListBucketMultipartUploads"
+                Resource:
+                  Fn::Join: [ "/", [ [!GetAtt ["EventS3Bucket", "Arn"]], "*" ] ]
 
 Outputs:
   ClickStreamKinesisStreamOutput:

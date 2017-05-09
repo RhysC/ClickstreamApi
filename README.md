@@ -19,7 +19,7 @@ infrastructure/CreateStack.sh
 
 
 ## Asumptions
-You are working in the AP-SOUTHEAST-2 (Sydney) region.
+You are working in the eu-west-1 (Ireland) region. Kinesis Firehose is in a limited number of regions at time of writing this
 
 
 ## Notes

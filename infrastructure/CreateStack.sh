@@ -14,10 +14,10 @@ aws cloudformation create-stack \
     --template-body file://$TEMPLATE_NAME \
     --capabilities CAPABILITY_NAMED_IAM \
     --profile rhysc \
-    --region ap-southeast-2
+    --region eu-west-1
 
 aws cloudformation wait stack-create-complete \
     --stack-name $STACK_NAME \
     --profile rhysc \
-    --region ap-southeast-2
+    --region eu-west-1
 echo "Complete"

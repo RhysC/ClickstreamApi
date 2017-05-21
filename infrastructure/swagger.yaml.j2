@@ -57,7 +57,7 @@ paths:
         requestTemplates:
           "application/json": '
             {
-                "StreamName":"clickstream",
+                "StreamName":"clickstream-kinesisstream",
                 "Data":"$util.base64Encode($input.path(''$''))",
                 "PartitionKey": "$input.path(''$.id'')"
             }'

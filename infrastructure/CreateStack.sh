@@ -14,7 +14,8 @@ aws cloudformation create-stack \
     --template-body file://$TEMPLATE_NAME \
     --capabilities CAPABILITY_NAMED_IAM \
     --profile rhysc \
-    --region eu-west-1
+    --region eu-west-1 \
+    --tags Key=Owner,Value=RhysC Key=Env,Value=Test
 
 aws cloudformation wait stack-create-complete \
     --stack-name $STACK_NAME \

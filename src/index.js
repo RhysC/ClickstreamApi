@@ -16,7 +16,7 @@ exports.handler = (event, context, callback) => {
         console.log('Decoded payload:', payload);
         //Firehose
         var params = {
-          DeliveryStreamName: 'clickstreamfirehose',
+          DeliveryStreamName: 'clickstream-firehose',
           Record: {
             Data: payload
           }

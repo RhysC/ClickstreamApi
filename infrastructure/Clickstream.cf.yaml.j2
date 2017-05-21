@@ -31,7 +31,7 @@ Resources:
   ClickStreamKinesisStream:
     Type: "AWS::Kinesis::Stream"
     Properties:
-      Name: clickstream
+      Name: clickstream-kinesisstream
       ShardCount: 2
       Tags:
         - Key: Name
@@ -55,10 +55,10 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-  ClickstreamFirehoseToS3Role:
+  ClickStreamFirehoseToS3Role:
     Type: "AWS::IAM::Role"
     Properties:
-      RoleName: ClickstreamFirehoseToS3Role
+      RoleName: ClickStreamFirehoseToS3Role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -73,7 +73,7 @@ Resources:
                 "sts:ExternalId": "032574790532"
       Policies:
         -
-          PolicyName: "ClickstreamFirehoseToS3Policy"
+          PolicyName: "ClickStreamFirehoseToS3Policy"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -88,10 +88,10 @@ Resources:
                   - "s3:ListBucketMultipartUploads"
                 Resource: "arn:aws:s3:::rhysc-clickstream-raw-events/*"
 
-  ClickstreamFirehose:
+  ClickStreamFirehose:
     Type: "AWS::KinesisFirehose::DeliveryStream"
     Properties:
-      DeliveryStreamName: clickstreamfirehose
+      DeliveryStreamName: clickstream-firehose
       S3DestinationConfiguration:
         BucketARN:
           Fn::Join:
@@ -102,14 +102,13 @@ Resources:
           IntervalInSeconds: 60
           SizeInMBs: 2
         CompressionFormat: GZIP
-        Prefix: "clickstreamfirehose/"
-        RoleARN: !GetAtt ["ClickstreamFirehoseToS3Role", "Arn"]
+        Prefix: "ClickStreamfirehose/"
+        RoleARN: !GetAtt ["ClickStreamFirehoseToS3Role", "Arn"]
 
-
-  ClickstreamLambdaToFirehoseRole:
+  ClickStreamLambdaToFirehoseRole:
     Type: "AWS::IAM::Role"
     Properties:
-      RoleName: ClickstreamLambdaToFirehoseRole
+      RoleName: ClickStreamLambdaToFirehoseRole
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -121,35 +120,100 @@ Resources:
             Action: "sts:AssumeRole"
       Policies:
         -
-          PolicyName: "ClickstreamLambdaToFirehosePolicy"
+          PolicyName: "ClickStreamLambdaToFirehosePolicy"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               -
                 Effect: "Allow"
                 Action:
-                  - "s3:PutObject"
-                  - "s3:AbortMultipartUpload"
-                  - "s3:GetBucketLocation"
-                  - "s3:GetObject"
-                  - "s3:ListBucket"
-                  - "s3:ListBucketMultipartUploads"
-                Resource: "arn:aws:s3:::rhysc-clickstream-raw-events/*"
+                  - "kinesis:GetRecords"
+                  - "kinesis:GetShardIterator"
+                  - "kinesis:DescribeStream"
+                  - "kinesis:ListStreams"
+                Resource: !GetAtt ["ClickStreamKinesisStream", "Arn"]
+              -
+                Effect: "Allow"
+                Action:
+                  - "firehose:PutRecord"
+                  - "firehose:PutRecordBatch"
+                Resource:
+                  Fn::Join:
+                    - ''
+                    - - 'arn:aws:firehose:'
+                      - Ref: "AWS::Region"
+                      - ":"
+                      - Ref: "AWS::AccountId"
+                      - ":deliverystream/clickstream-firehose"
+              -
+                Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+              -
+                Effect: "Allow"
+                Action:
+                  - "xray:PutTraceSegments"
+                  - "xray:PutTelemetryRecords"
+                Resource: "*"
 
+  ClickStreamLambda:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: ClickStreamKinesisToFirehose
+      Handler: "index.handler"
+      Role:
+        Fn::GetAtt:
+          - "ClickStreamLambdaToFirehoseRole"
+          - "Arn"
+      Code:
+        ZipFile:
+          Fn::Join:
+            - "\n"
+            - - ""
+{{params.lambda_code}}
+      Runtime: "nodejs4.3"
+      Timeout: "25"
+
+  ClickStreamLambdaEventSourceMapping:
+    Type: "AWS::Lambda::EventSourceMapping"
+    Properties:
+      Enabled: true
+      EventSourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:aws:kinesis:"
+            - Ref: "AWS::Region"
+            - ":"
+            - Ref: "AWS::AccountId"
+            - ":stream/"
+            - Ref: "ClickStreamKinesisStream"
+      FunctionName:
+        Fn::GetAtt:
+          - "ClickStreamLambda"
+          - "Arn"
+      StartingPosition: "TRIM_HORIZON"
 
 Outputs:
-  ClickStreamKinesisStreamOutput:
-    Description: "The clickstream Kinesis stream"
-    Value: !Ref ClickStreamKinesisStream
-    Export:
-      Name: !Sub "corp-clickstream-kinesis-stream"
   ClickStreamApiGatewayOutput:
-    Description: "The clickstream Api Gateway"
+    Description: "The ClickStream Api Gateway"
     Value: !Ref ClickStreamApiGateway
     Export:
       Name: !Sub "corp-clickstream-apigateway"
-  ClickStreamApiGatewayKinesisRoleOutput:
-    Description: "Role for Clickstream Api Gateway writing to the clickstream Kinesis stream"
-    Value: !Ref ClickStreamApiGatewayKinesisRole
+  ClickStreamKinesisStreamOutput:
+    Description: "The ClickStream Kinesis stream"
+    Value: !Ref ClickStreamKinesisStream
     Export:
-      Name: !Sub "corp-clickstream-apigateway-to-kinesis-role"
+      Name: !Sub "corp-clickstream-kinesis-stream"
+  ClickStreamFirehoseOutput:
+    Description: "The ClickStream Kinesis firehose stream"
+    Value: !Ref ClickStreamFirehose
+    Export:
+      Name: !Sub "corp-clickstream-kinesis-firehose"
+  ClickStreamEventS3BucketOutput:
+    Description: "The ClickStream s3 bucket that will make up part of your data lake"
+    Value: !Ref EventS3Bucket
+    Export:
+      Name: !Sub "corp-clickstream-s3-bucket"

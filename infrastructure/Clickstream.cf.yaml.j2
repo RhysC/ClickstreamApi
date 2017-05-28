@@ -46,14 +46,21 @@ Resources:
       Body:
         {{params.swagger_def}}
 
+  ClickStreamApiGatewayDeployment:
+    Type: "AWS::ApiGateway::Deployment"
+    Properties:
+      RestApiId:
+        Ref: "ClickStreamApiGateway"
+      StageName: "dev"
+
   #Firehose to Data lake
-  EventS3Bucket:
+  ClickStreamEventS3Bucket:
     Type: AWS::S3::Bucket
     # DeletionPolicy: Retain #i.e. retain the bucket when the stack is deleted
     Properties:
       BucketName: rhysc-clickstream-raw-events
       VersioningConfiguration:
-        Status: Enabled
+        Status: Suspended
 
   ClickStreamFirehoseToS3Role:
     Type: "AWS::IAM::Role"
@@ -97,7 +104,7 @@ Resources:
           Fn::Join:
             - ''
             - - 'arn:aws:s3:::'
-              - Ref: EventS3Bucket
+              - Ref: ClickStreamEventS3Bucket
         BufferingHints:
           IntervalInSeconds: 60
           SizeInMBs: 2
@@ -214,6 +221,16 @@ Outputs:
       Name: !Sub "corp-clickstream-kinesis-firehose"
   ClickStreamEventS3BucketOutput:
     Description: "The ClickStream s3 bucket that will make up part of your data lake"
-    Value: !Ref EventS3Bucket
+    Value: !Ref ClickStreamEventS3Bucket
     Export:
       Name: !Sub "corp-clickstream-s3-bucket"
+  ClickStreamApiGatewayEndpoint:
+    Description: "URL of the service endpoint"
+    Value:
+      Fn::Join:
+        - ""
+        - - "https://"
+          - Ref: "ClickStreamApiGateway"
+          - ".execute-api."
+          - Ref: "AWS::Region"
+          - ".amazonaws.com/dev"

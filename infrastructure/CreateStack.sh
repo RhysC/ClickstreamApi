@@ -21,4 +21,12 @@ aws cloudformation wait stack-create-complete \
     --stack-name $STACK_NAME \
     --profile rhysc \
     --region eu-west-1
+
+echo "ClickStreamApiGatewayEndpoint:"
+aws cloudformation describe-stacks \
+    --stack-name $STACK_NAME \
+    --profile rhysc \
+    --region eu-west-1 \
+    --query 'Stacks[0].Outputs[?OutputKey==`ClickStreamApiGatewayEndpoint`].OutputValue'
+
 echo "Complete"

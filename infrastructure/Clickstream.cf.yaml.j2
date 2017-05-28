@@ -224,3 +224,13 @@ Outputs:
     Value: !Ref ClickStreamEventS3Bucket
     Export:
       Name: !Sub "corp-clickstream-s3-bucket"
+  ClickStreamApiGatewayEndpoint:
+    Description: "URL of the service endpoint"
+    Value:
+      Fn::Join:
+        - ""
+        - - "https://"
+          - Ref: "ClickStreamApiGateway"
+          - ".execute-api."
+          - Ref: "AWS::Region"
+          - ".amazonaws.com/dev"

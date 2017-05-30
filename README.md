@@ -18,7 +18,7 @@ infrastructure/CreateStack.sh
 
 
 
-## Asumptions
+## Assumptions
 You are working in the eu-west-1 (Ireland) region. Kinesis Firehose is in a limited number of regions at time of writing this
 
 

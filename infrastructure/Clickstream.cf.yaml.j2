@@ -1,6 +1,23 @@
 AWSTemplateFormatVersion: '2010-09-09'
 
-# Parameters:
+Parameters:
+  ApiStage:
+    Description: "The stage that you wish to deploy to ie dev, test, prod"
+    Type: String
+    Default: dev
+  S3EventsBucketName:
+    Description: "The globally unique s3 bucket name to which the firehose will deposit raw events into"
+    Type: String
+    Default: rhysc-clickstream-raw-events
+  # See https://www.unixdaemon.net/cloud/cloudformation-annoyance-deletion-policy-parameters/
+  # S3EventsBucketDeletionPolicy:
+  #   Description: "Should you delete the bucket when the stack is deleted or retained. NB: You must delete all objects in the bucket for deletion to succeed."
+  #   Type: String
+  #   Default: Delete
+  #   AllowedValues:
+  #     - https://www.unixdaemon.net/cloud/cloudformation-annoyance-deletion-policy-parameters/
+  #     - Retain
+
 
 Resources:
 
@@ -51,16 +68,19 @@ Resources:
     Properties:
       RestApiId:
         Ref: "ClickStreamApiGateway"
-      StageName: "dev"
+      StageName:
+        Ref: ApiStage
 
   #Firehose to Data lake
   ClickStreamEventS3Bucket:
     Type: AWS::S3::Bucket
-    # DeletionPolicy: Retain #i.e. retain the bucket when the stack is deleted
+    DeletionPolicy: Delete
+      # Ref: S3EventsBucketDeletionPolicy
     Properties:
-      BucketName: rhysc-clickstream-raw-events
+      BucketName:
+        Ref: S3EventsBucketName
       VersioningConfiguration:
-        Status: Suspended
+        Status: Suspended #this should be insert only, versioning is redundant
 
   ClickStreamFirehoseToS3Role:
     Type: "AWS::IAM::Role"
@@ -77,7 +97,7 @@ Resources:
             Action: "sts:AssumeRole"
             Condition:
               StringEquals:
-                "sts:ExternalId": "032574790532"
+                "sts:ExternalId": "032574790532" #TODO - update hardcoded value/magic number
       Policies:
         -
           PolicyName: "ClickStreamFirehoseToS3Policy"
@@ -93,7 +113,11 @@ Resources:
                   - "s3:GetObject"
                   - "s3:ListBucket"
                   - "s3:ListBucketMultipartUploads"
-                Resource: "arn:aws:s3:::rhysc-clickstream-raw-events/*"
+                Resource:
+                  Fn::Join:
+                    - ''
+                    - - 'arn:aws:s3:::'
+                      - Ref: ClickStreamEventS3Bucket
 
   ClickStreamFirehose:
     Type: "AWS::KinesisFirehose::DeliveryStream"
@@ -109,7 +133,7 @@ Resources:
           IntervalInSeconds: 60
           SizeInMBs: 2
         CompressionFormat: GZIP
-        Prefix: "ClickStreamfirehose/"
+        Prefix: "ClickStreamFirehose/"
         RoleARN: !GetAtt ["ClickStreamFirehoseToS3Role", "Arn"]
 
   ClickStreamLambdaToFirehoseRole:
@@ -233,4 +257,5 @@ Outputs:
           - Ref: "ClickStreamApiGateway"
           - ".execute-api."
           - Ref: "AWS::Region"
-          - ".amazonaws.com/dev"
+          - ".amazonaws.com/"
+          - Ref: "ApiStage"
